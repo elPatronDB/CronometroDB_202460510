@@ -1,59 +1,82 @@
-import { useState, useEffect } from 'react'
+import { useReducer, useEffect } from 'react'
 import './App.css'
 
-function App() {
+type State = {
+  hour: number
+  minute: number
+  second: number
+  laps: string[]
+}
 
-  const [hour, setHour] = useState(0);
-  const [minute, setMinute] = useState(0);
-  const [second, setSecond] = useState(0);
+type Action =
+  | { type: 'TICK' }
+  | { type: 'LAP' }
+  | { type: 'RESET' }
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'TICK': {
+      let { hour, minute, second } = state
+
+      if (second === 59) {
+        second = 0
+        if (minute === 59) {
+          minute = 0
+          hour = hour === 23 ? 0 : hour + 1
+        } else {
+          minute = minute + 1
+        }
+      } else {
+        second = second + 1
+      }
+
+      return { ...state, hour, minute, second }
+    }
+
+    case 'LAP': {
+      const lap =
+        'LAP: ' +
+        state.hour.toString().padStart(2, '0') +
+        ':' +
+        state.minute.toString().padStart(2, '0') +
+        ':' +
+        state.second.toString().padStart(2, '0')
+      return { ...state, laps: [...state.laps, lap] }
+    }
+
+    case 'RESET':
+      return { hour: 0, minute: 0, second: 0, laps: [] }
+
+    default:
+      return state
+  }
+}
+
+function App() {
+  const [state, dispatch] = useReducer(reducer, {
+    hour: 0,
+    minute: 0,
+    second: 0,
+    laps: []
+  })
 
   useEffect(() => {
     const interval = window.setInterval(() => {
+      dispatch({ type: 'TICK' })
+    }, 1000)
 
-      setHour((prevHour) => {
-        if (prevHour === 23) {
-          return 0;
-        } else {
-          return prevHour;
-        }
-      });
-
-      setMinute((prevMinute) => {
-        if (prevMinute === 59) {
-          setHour((prevHour) => (prevHour === 23 ? 0 : prevHour + 1));
-          return 0;
-        } else {
-          return prevMinute;
-        }
-      });
-
-      setSecond((prevSecond) => {
-        if (prevSecond === 59) {
-          setMinute((prevMinute) => (prevMinute === 59 ? 0 : prevMinute + 1));
-          return 0;
-        } else {
-          return prevSecond + 1;
-        }
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  } , []);
-
-  const [listLaps, setLaps] = useState<string[]>([]);
+    return () => clearInterval(interval)
+  }, [])
 
   function listaLaps() {
-    const laps = "LAP: " + hour.toString().padStart(2, '0') + ":" + minute.toString().padStart(2, '0') + ":" + second.toString().padStart(2, '0');
-    setLaps(prev => [...prev, laps]);
-    console.log(laps);
-    return laps;
+    dispatch({ type: 'LAP' })
+    // si quieres mantener el console.log original:
+    // const last = state.hour.toString().padStart(2, '0') + ':' + state.minute.toString().padStart(2, '0') + ':' + state.second.toString().padStart(2, '0')
+    // console.log('LAP: ' + last)
   }
 
   function handleStopReset() {
-    setHour(0);
-    setMinute(0);
-    setSecond(0);
-    setLaps([]);
+    dispatch({ type: 'RESET' })
   }
 
   return (
@@ -61,17 +84,23 @@ function App() {
       <h1>CRONÓMETRO DB</h1>
       <div className="cronometro-container">
         <div className="grid grid-flow-col gap-5 text-center auto-cols-max">
-            <span className="time countdown font-mono text-5xl">
-              {hour.toString().padStart(2, '0')}:{minute.toString().padStart(2, '0')}:{second.toString().padStart(2, '0')}
-            </span>
+          <span className="time countdown font-mono text-5xl">
+            {state.hour.toString().padStart(2, '0')}:
+            {state.minute.toString().padStart(2, '0')}:
+            {state.second.toString().padStart(2, '0')}
+          </span>
         </div>
 
         <div className="card-actions justify-end">
-            <button className="btn btn-primary" onClick={listaLaps}>LAP</button>
-            <button className="btn btn-primary" onClick={handleStopReset}>STOP</button>
+          <button className="btn btn-primary" onClick={listaLaps}>
+            LAP
+          </button>
+          <button className="btn btn-primary" onClick={handleStopReset}>
+            STOP
+          </button>
         </div>
 
-        {listLaps.length > 0 && (
+        {state.laps.length > 0 && (
           <div style={{ marginTop: 16 }}>
             <table className="table-auto">
               <thead>
@@ -81,7 +110,7 @@ function App() {
                 </tr>
               </thead>
               <tbody>
-                {listLaps.map((lap, idx) => (
+                {state.laps.map((lap, idx) => (
                   <tr key={idx}>
                     <td>{idx + 1}</td>
                     <td>{lap}</td>
